@@ -1,0 +1,266 @@
+<!--
+
+MovingBoxes.html
+Tests performance of transforms vs. top/left
+Created by Jonathan Deutsch <jonathan@tumult.com>
+Copyright (c) 2013 Tumult Inc.
+
+--> 
+
+<html>
+  <head>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<style>
+				
+			#container {
+				width: 800px;
+				height: 600px;
+				position: relative;
+			}
+		
+		</style>		
+		<script>
+
+// from http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       ||
+          window.webkitRequestAnimationFrame ||
+          window.mozRequestAnimationFrame    ||
+          window.oRequestAnimationFrame      ||
+          window.msRequestAnimationFrame     ||
+          function( callback ){
+            window.setTimeout(callback, 1000 / 60);
+          };
+})();
+
+// modified from source found at: http://frugalcoder.us/post/2010/09/13/browser-detection.aspx
+var kBrowserInfo = (function () {
+	var b = {};
+
+	if (!navigator) return b;
+
+	//browsermatch method...
+	function bm(re) {
+		var m = (navigator && navigator.userAgent && navigator.userAgent.match(re));
+		return (m && m[1]);
+	}
+
+	//setup browser detection
+	b.ie = parseFloat(bm(/MSIE (\d+\.\d+)/)) || null;
+	b.gecko = parseFloat(bm(/Gecko\/(\d+)/)) || null;
+	b.ff = parseFloat(bm(/Firefox\/(\d+\.\d+)/)) || null;
+	b.khtml = parseFloat(bm(/\((KHTML)/) && 1) || null;
+	b.webkit = parseFloat(bm(/AppleWebKit\/(\d+\.\d+)/));
+	b.chrome = parseFloat(b.webkit && bm(/Chrome\/(\d+\.\d+)/)) || null;
+	b.safari = parseFloat(b.webkit && bm(/Safari\/(\d+\.\d+)/) && bm(/Version\/(\d+\.\d+)/)) || null;
+	b.opera = parseFloat(bm(/Opera\/(\d+\.\d+)/) && bm(/Version\/(\d+\.\d+)/)) || bm(/Opera\/(\d+\.\d+)/) || null;
+	b.android = (navigator.userAgent.search("Android") > -1) || null;
+	b.ipad = (navigator.userAgent.search("iPad") > -1) || null;
+	b.iphone = (navigator.userAgent.search("iPhone") > -1) || null;
+	b.ipod = (navigator.userAgent.search("iPod") > -1) || null;
+	b.ios = b.ipad || b.iphone || b.ipod || null;
+
+	//delete empty values
+	for (var x in b) {
+		if (b[x] === null || isNaN(b[x]))
+			delete b[x];
+	}
+
+	//disable IE matching for older Opera versions.
+	if (b.opera && b.ie) delete b.ie;
+	
+	return b;
+}());
+
+var kTotalBoxCount = 2000;
+var kBoxWidth = 100;
+var kBoxHeight = 100;
+var kContainerWidth = 800;
+var kContainerHeight = 600;
+var kTestDuration = 10.0;
+var kMaxTestIterations = 1;
+
+var kTransformName = "transform";
+var kTransitionName = "transition";
+if(kBrowserInfo.webkit != null) {
+	kTransformName = "-webkit-transform";
+	kTransitionName = "-webkit-transition";
+}
+
+var gBoxes = Array();
+var gStartTime = null;
+var gFrameCount = 0;
+var gTestMode = "transition"; // "javascript"
+var gTestProperty = "topleft"; // "topleft" 
+var gShouldForce3D = false; // false
+var gOpaque = false;
+var gCurrentTestIndex = 0;
+var gCurrentTestIteration = 0;
+
+// test matrix
+// transition style rotateY opacity
+// 
+
+var kTestsMatrix = [
+					{ "mode" : "javascript", "property" : "topleft", "shouldForce3D" : true, "opaque" : false },
+					{ "mode" : "javascript", "property" : "topleft", "shouldForce3D" : false, "opaque" : false },
+					{ "mode" : "javascript", "property" : "translate", "shouldForce3D" : true, "opaque" : false },
+					{ "mode" : "javascript", "property" : "translate", "shouldForce3D" : false, "opaque" : false },
+					{ "mode" : "transition", "property" : "topleft", "shouldForce3D" : true, "opaque" : false },
+					{ "mode" : "transition", "property" : "topleft", "shouldForce3D" : false, "opaque" : false },
+					{ "mode" : "transition", "property" : "translate", "shouldForce3D" : false, "opaque" : false },
+					{ "mode" : "transition", "property" : "translate", "shouldForce3D" : true, "opaque" : false },
+					{ "mode" : "javascript", "property" : "topleft", "shouldForce3D" : true, "opaque" : true },
+					{ "mode" : "javascript", "property" : "topleft", "shouldForce3D" : false, "opaque" : true },
+					{ "mode" : "javascript", "property" : "translate", "shouldForce3D" : true, "opaque" : true },
+					{ "mode" : "javascript", "property" : "translate", "shouldForce3D" : false, "opaque" : true },
+					{ "mode" : "transition", "property" : "topleft", "shouldForce3D" : true, "opaque" : true },
+					{ "mode" : "transition", "property" : "topleft", "shouldForce3D" : false, "opaque" : true },
+					{ "mode" : "transition", "property" : "translate", "shouldForce3D" : false, "opaque" : true },
+					{ "mode" : "transition", "property" : "translate", "shouldForce3D" : true, "opaque" : true },
+
+				];
+
+function beginTesting() {
+	runNextTest();
+}
+
+function runNextTest() {
+	var testInfo = kTestsMatrix[gCurrentTestIndex];
+
+	if(gCurrentTestIndex < kTestsMatrix.length) {
+		document.getElementById("output").innerHTML += "" + gCurrentTestIndex + " ";
+		runTest(testInfo.mode, testInfo.property, testInfo.shouldForce3D, testInfo.opaque);
+	}
+
+	if(gCurrentTestIteration + 1 < kMaxTestIterations) {
+		gCurrentTestIteration += 1;
+	} else {
+		gCurrentTestIteration = 0;
+		gCurrentTestIndex += 1;			
+	}
+}
+
+function runTest(mode, property, shouldForce3D, opaque) {
+	var containerElement = document.getElementById("container");
+	containerElement.innerHTML = "";
+
+	gTestMode = mode;
+	gTestProperty = property;
+	gShouldForce3D = shouldForce3D;
+	gOpaque = opaque;
+	gFrameCount = 0;
+
+	createBoxes();
+
+	window.setTimeout((function() {
+		gStartTime = (((new Date).getTime()) / 1000.0);
+
+		if(gTestMode == "transition") {
+			window.requestAnimFrame(kickoffTransition);
+		} else if(gTestMode == "javascript") {
+			window.requestAnimFrame(heartbeat);
+		}
+	}), 2000);
+}
+
+function endTest(frames, elapsedTime) {
+	//document.getElementById("output").innerHTML += "" +  frames + " / " + elapsedTime + " = " + (frames/elapsedTime) + "<br>";
+	runNextTest();
+}
+
+function kickoffTransition() {
+	for(var i = 0; i < gBoxes.length; i++) {
+		setElementPosition(gBoxes[i].element, gBoxes[i].endX, gBoxes[i].endY);
+	}
+	
+	window.setTimeout(function() { endTest(); }, (kTestDuration * 1000) + 1000);
+}
+
+function heartbeat() {
+	gFrameCount += 1;
+	
+	var currentTime = (((new Date).getTime()) / 1000.0) - gStartTime;
+	var percentComplete = currentTime / kTestDuration;
+	
+	for(var i = 0; i < gBoxes.length; i++) {
+		xPos = Math.floor(gBoxes[i].startX + ((gBoxes[i].endX - gBoxes[i].startX) * percentComplete));
+		yPos = Math.floor(gBoxes[i].startY + ((gBoxes[i].endY - gBoxes[i].startY) * percentComplete));
+		setElementPosition(gBoxes[i].element, xPos, yPos);
+	}
+	
+	if(currentTime < kTestDuration) {
+		window.requestAnimFrame(heartbeat);
+	} else {
+		endTest(gFrameCount, currentTime);	
+	}
+}
+
+function setElementPosition(element, xPos, yPos) {
+	if(gTestProperty == "topleft") {
+		element.style.left = "" + xPos + "px";
+		element.style.top = "" + yPos + "px";
+	} else if(gTestProperty == "translate") {
+		if(gShouldForce3D == true) {
+			element.style[kTransformName] = "translateX(" + xPos + "px) translateY(" + yPos + "px) rotateY(0deg)";
+		} else {
+			element.style[kTransformName] = "translateX(" + xPos + "px) translateY(" + yPos + "px)";
+		}
+	} 
+}
+
+function createBoxes() {
+	var containerElement = document.getElementById("container");
+	
+	gBoxes = Array();
+
+	for(var i = 0; i < kTotalBoxCount; i++) {
+		var boxElement = document.createElement("div");
+		boxElement.style.border = "1px solid #333";
+		boxElement.style.backgroundColor = "#acf";
+		boxElement.style.width = "" + kBoxWidth + "px";
+		boxElement.style.height = "" + kBoxHeight + "px";
+		if(gTestProperty == "translate") {
+			boxElement.style.left = "0px";
+			boxElement.style.top = "0px";
+		}
+		if(gTestMode == "transition") {
+			if(gTestProperty == "topleft") {
+				boxElement.style[kTransitionName] = "left " + kTestDuration + "s linear, top " + kTestDuration + "s linear";
+			} else if(gTestProperty == "translate") {
+				boxElement.style[kTransitionName] = "" + kTransformName + " " + kTestDuration + "s linear";
+			}
+		}
+
+		boxElement.style.position = "absolute";
+		if(gOpaque == true) {
+			boxElement.style.opacity = 1.0 - (i / kTotalBoxCount);
+		}
+		if(gShouldForce3D == true) {
+			boxElement.style[kTransformName] = "rotateY(0deg)";
+		}
+		boxElement.id = "box-" + i;
+		
+		var startX = Math.floor(Math.random() * (kContainerWidth - kBoxWidth));
+		var startY = Math.floor(Math.random() * (kContainerHeight - kBoxHeight));
+		var endX = Math.floor(Math.random() * (kContainerWidth - kBoxWidth));
+		var endY = Math.floor(Math.random() * (kContainerHeight - kBoxHeight));
+
+		gBoxes.push({"startX" : startX, "startY" : startY, "endX" : endX, "endY" : endY , "element" : boxElement});
+
+		containerElement.appendChild(boxElement);
+		setElementPosition(boxElement, startX, startY);
+	}
+}
+		
+		</script>
+		
+	</head>
+	<body onload = "beginTesting()">
+	
+		<div id = "container"></div>
+
+		<div id = "output"></div>
+
+	</body>
+<html>
