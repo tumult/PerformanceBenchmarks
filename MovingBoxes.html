@@ -93,7 +93,7 @@ var gFrameCount = 0;
 var gTestMode = "transition"; // "javascript"
 var gTestProperty = "topleft"; // "topleft" 
 var gShouldForce3D = false; // false
-var gOpaque = false;
+var gOpaque = true;
 var gCurrentTestIndex = 0;
 var gCurrentTestIteration = 0;
 
@@ -102,14 +102,6 @@ var gCurrentTestIteration = 0;
 // 
 
 var kTestsMatrix = [
-					{ "mode" : "javascript", "property" : "topleft", "shouldForce3D" : true, "opaque" : false },
-					{ "mode" : "javascript", "property" : "topleft", "shouldForce3D" : false, "opaque" : false },
-					{ "mode" : "javascript", "property" : "translate", "shouldForce3D" : true, "opaque" : false },
-					{ "mode" : "javascript", "property" : "translate", "shouldForce3D" : false, "opaque" : false },
-					{ "mode" : "transition", "property" : "topleft", "shouldForce3D" : true, "opaque" : false },
-					{ "mode" : "transition", "property" : "topleft", "shouldForce3D" : false, "opaque" : false },
-					{ "mode" : "transition", "property" : "translate", "shouldForce3D" : false, "opaque" : false },
-					{ "mode" : "transition", "property" : "translate", "shouldForce3D" : true, "opaque" : false },
 					{ "mode" : "javascript", "property" : "topleft", "shouldForce3D" : true, "opaque" : true },
 					{ "mode" : "javascript", "property" : "topleft", "shouldForce3D" : false, "opaque" : true },
 					{ "mode" : "javascript", "property" : "translate", "shouldForce3D" : true, "opaque" : true },
@@ -118,6 +110,14 @@ var kTestsMatrix = [
 					{ "mode" : "transition", "property" : "topleft", "shouldForce3D" : false, "opaque" : true },
 					{ "mode" : "transition", "property" : "translate", "shouldForce3D" : false, "opaque" : true },
 					{ "mode" : "transition", "property" : "translate", "shouldForce3D" : true, "opaque" : true },
+					{ "mode" : "javascript", "property" : "topleft", "shouldForce3D" : true, "opaque" : false },
+					{ "mode" : "javascript", "property" : "topleft", "shouldForce3D" : false, "opaque" : false },
+					{ "mode" : "javascript", "property" : "translate", "shouldForce3D" : true, "opaque" : false },
+					{ "mode" : "javascript", "property" : "translate", "shouldForce3D" : false, "opaque" : false },
+					{ "mode" : "transition", "property" : "topleft", "shouldForce3D" : true, "opaque" : false },
+					{ "mode" : "transition", "property" : "topleft", "shouldForce3D" : false, "opaque" : false },
+					{ "mode" : "transition", "property" : "translate", "shouldForce3D" : false, "opaque" : false },
+					{ "mode" : "transition", "property" : "translate", "shouldForce3D" : true, "opaque" : false },
 
 				];
 
@@ -233,7 +233,7 @@ function createBoxes() {
 		}
 
 		boxElement.style.position = "absolute";
-		if(gOpaque == true) {
+		if(gOpaque == false) {
 			boxElement.style.opacity = 1.0 - (i / kTotalBoxCount);
 		}
 		if(gShouldForce3D == true) {
